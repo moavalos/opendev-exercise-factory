@@ -2,6 +2,8 @@ package com.opendev.repository.impl;
 
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
 
 import java.util.AbstractMap;
 
@@ -16,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.opendev.contracts.StatsModel;
@@ -30,8 +31,8 @@ public class CarRepositoryImpl implements CarRepository {
 
 	@Override
 	public Car save(Car entity) {
-		int size = dbCars.size();
-		int id = ++size;
+		
+		int id = dbCars.size() + 1;
 		entity.setId(id);
 		dbCars.put(id, entity);
 		return dbCars.get(dbCars.size());
@@ -49,7 +50,7 @@ public class CarRepositoryImpl implements CarRepository {
 
 	@Override
 	public Car getOne(int id) {
-		return null;
+		return dbCars.get(id);
 	}
 
 	@Override
@@ -59,11 +60,11 @@ public class CarRepositoryImpl implements CarRepository {
 
 	@Override
 	public Set<StatsModel> statsModel() {
+		
 		Set<StatsModel> statsModel = new HashSet<>();
 		Stream<Model> models = dbCars.entrySet().stream().map(v -> v.getValue().getModel()).distinct();
 
 		models.forEach(m -> {
-
 			String name = m.getName();
 			long count = dbCars.entrySet().stream().map(Entry::getValue).map(Car::getModel).filter(f -> f.getId().equals(m.getId())).count();
 			double percent = 100 * count / dbCars.size();
@@ -75,15 +76,15 @@ public class CarRepositoryImpl implements CarRepository {
 
 	@Override
 	public Set<StatsOptional> statsOptional() {
+		
 		Set<StatsOptional> statsOptionals = new HashSet<>();
-		
-		Map<Optional, List<Car>> optionalGroupByCars = dbCars.entrySet().stream().map(Entry::getValue).flatMap(
-				car -> car.getOptionals().stream().map(optional -> new AbstractMap.SimpleEntry<>(optional, car)))
-				.collect(Collectors.groupingBy(AbstractMap.SimpleEntry::getKey,
-						Collectors.mapping(AbstractMap.SimpleEntry::getValue, Collectors.toList())));
-		
+
+		Map<Optional, List<Car>> optionalGroupByCars = dbCars.entrySet().stream()
+				.map(Entry::getValue).flatMap(car -> car.getOptionals().stream().map(optional -> new AbstractMap.SimpleEntry<>(optional, car)))
+				.collect(groupingBy(AbstractMap.SimpleEntry::getKey, mapping(AbstractMap.SimpleEntry::getValue, toList())));
+
 		Integer optionalTotalSum = dbCars.entrySet().stream().map(Entry::getValue).map(c -> c.getOptionals().size()).reduce(0, Integer::sum);
-			
+
 		optionalGroupByCars.forEach((k, v) -> {
 			double percent = 100 * v.size() / optionalTotalSum;
 			statsOptionals.add(new StatsOptional(k.getName(), v.size(), percent));
@@ -93,10 +94,10 @@ public class CarRepositoryImpl implements CarRepository {
 
 	private transient static final Map<Integer, Car> dbCars = new HashMap<>() {
 		{
-			put(1, new Car(1, dbModels.get(3), of(dbOptionals.get(1), dbOptionals.get(2), dbOptionals.get(3), dbOptionals.get(4))));
-			put(2, new Car(2, dbModels.get(1), of(dbOptionals.get(2), dbOptionals.get(4))));
+			put(1, new Car(1, dbModels.get(1), of(dbOptionals.get(2), dbOptionals.get(4))));
+			put(2, new Car(2, dbModels.get(1), of(dbOptionals.get(1), dbOptionals.get(4))));
 			put(3, new Car(3, dbModels.get(2), of(dbOptionals.get(2), dbOptionals.get(4))));
-			put(4, new Car(4, dbModels.get(1), of(dbOptionals.get(1), dbOptionals.get(4))));
+			put(4, new Car(4, dbModels.get(3), of(dbOptionals.get(1), dbOptionals.get(2), dbOptionals.get(3), dbOptionals.get(4))));
 			put(5, new Car(5, dbModels.get(3), of()));
 		}
 	};
